@@ -1,0 +1,707 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>2.5D map editor</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif; color: #e7edf6; background: #10151e; --muted: #96a6ba; --line: #2a3546; --blue: #77b9ff; --green: #69e0c4; }
+    * { box-sizing: border-box; }
+    body { margin: 0; height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
+    button, input { font: inherit; }
+    button { border: 1px solid #39495d; border-radius: 7px; background: #222e3e; color: #e7edf6; padding: 9px 12px; cursor: pointer; }
+    button:hover { background: #304058; }
+    button:focus-visible, input:focus-visible, canvas:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
+    button.active { border-color: var(--blue); background: #26456a; color: #fff; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    header { padding: 18px 24px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 16px; background: #161e2b; }
+    .brand { width: 36px; height: 36px; border: 1px solid #4b8bb9; border-radius: 9px; display: grid; place-items: center; color: var(--green); font-size: 23px; flex-shrink: 0; }
+    h1 { margin: 0; font-size: 18px; font-weight: 650; letter-spacing: -.3px; }
+    #map-description { color: var(--muted); font-size: 12px; margin-top: 4px; overflow-wrap: anywhere; }
+    .offline { margin-left: auto; color: var(--green); font-size: 12px; white-space: nowrap; }
+    main { min-height: 0; flex: 1; display: grid; grid-template-columns: 320px minmax(0, 1fr); }
+    aside { overflow-y: auto; border-right: 1px solid var(--line); background: #161e2b; padding: 22px 20px; }
+    section { padding-bottom: 22px; margin-bottom: 22px; border-bottom: 1px solid var(--line); }
+    section:last-child { border: 0; padding-bottom: 0; margin-bottom: 0; }
+    h2 { font-size: 14px; margin: 0 0 10px; font-weight: 650; }
+    .step { color: var(--muted); display: inline-block; width: 24px; font-size: 12px; }
+    p { font-size: 12px; line-height: 1.55; color: var(--muted); margin: 8px 0 12px; }
+    .wide { width: 100%; }
+    .row { display: flex; gap: 8px; align-items: center; }
+    .fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+    label { display: block; font-size: 11px; color: var(--muted); }
+    input { width: 100%; border: 1px solid #39495d; border-radius: 6px; color: #e7edf6; background: #101722; padding: 9px 7px; margin-top: 5px; font-size: 12px; min-width: 0; }
+    input:invalid { border-color: #fb9b9b; }
+    #yaw-field { max-width: 130px; }
+    .stat { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; margin-top: 14px; color: var(--muted); }
+    .stat strong { color: var(--green); font-variant-numeric: tabular-nums; font-weight: 600; }
+    #save { background: #69e0c4; color: #102b2b; border-color: #69e0c4; font-weight: 700; margin-top: 14px; }
+    #save:hover { background: #95ebd7; }
+    .secondary { background: transparent; color: var(--muted); font-size: 12px; }
+    #metadata-save { margin-top: 8px; }
+    .workspace { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+    .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: #131c28; }
+    .toolbar button { padding: 7px 11px; font-size: 12px; }
+    .toolbar .save-action { background: var(--green); color: #102b2b; border-color: var(--green); font-weight: 700; }
+    .toolbar .save-action:hover { background: #95ebd7; }
+    .view-label { font-size: 12px; margin-right: auto; color: #d0dceb; }
+    #canvas-wrap { position: relative; flex: 1; min-height: 260px; overflow: hidden; }
+    canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+    #hint { position: absolute; top: 16px; left: 16px; right: 16px; pointer-events: none; font-size: 12px; color: #c1d1e3; text-shadow: 0 1px 3px #000; }
+    .legend { position: absolute; bottom: 18px; left: 18px; padding: 9px 12px; border: 1px solid #314255; border-radius: 7px; background: #111b29e8; pointer-events: none; font-size: 11px; color: #afc1d6; }
+    .gradient { height: 5px; width: 130px; background: linear-gradient(90deg, #397eaf, #58c8cf, #dbe48a); border-radius: 3px; margin: 6px 0; }
+    .legend-labels { display: flex; justify-content: space-between; gap: 20px; }
+    footer { min-height: 38px; background: #161e2b; border-top: 1px solid var(--line); padding: 10px 16px; display: flex; gap: 14px; font-size: 11px; color: var(--muted); }
+    #status { flex: 1; }
+    #status.error { color: #ffaaaa; }
+    #position { font-variant-numeric: tabular-nums; white-space: nowrap; }
+    @media (max-width: 760px) {
+      body { height: auto; min-height: 100vh; }
+      header { padding: 14px 16px; }
+      main { display: flex; flex-direction: column-reverse; }
+      aside { overflow: visible; border-right: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; padding: 20px 16px; }
+      aside section { margin: 0; }
+      .workspace { height: 65vh; min-height: 420px; }
+      .offline { display: none; }
+      footer { flex-wrap: wrap; }
+    }
+    @media (max-width: 440px) { aside { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand" aria-hidden="true">⌖</div>
+    <div><h1>2.5D map editor</h1><div id="map-description">Loading embedded map…</div></div>
+    <div class="offline">● Offline · all data stays in this browser</div>
+    <button id="open-pcd">Open PCD</button>
+    <input id="pcd-file" type="file" accept=".pcd" hidden>
+  </header>
+  <main>
+    <aside>
+      <section>
+        <h2><span class="step">01</span> Select the region</h2>
+        <p>Use 3D view to inspect the map. Choose Edit four corners for a top view, then drag the four large numbered dots around the area to keep. Every height inside the boundary is included.</p>
+        <button id="crop-mode" class="wide active" aria-pressed="true">Edit four corners</button>
+        <div class="stat"><span>Points to keep</span><strong id="crop-count">—</strong></div>
+        <div class="stat"><span>Of all valid points</span><span id="total-count">—</span></div>
+      </section>
+      <section>
+        <h2><span class="step">02</span> Set the new origin</h2>
+        <p>Pick a cloud point to place XYZ = 0. Its measured height sets Z; refine any coordinate below, in the source frame. When surfaces overlap in this top view, check Z to choose the intended height.</p>
+        <button id="origin-mode" class="wide" aria-pressed="false">Pick XYZ origin</button>
+        <div class="fields">
+          <label>X · m<input id="origin-x" type="number" value="0" step="any" required aria-label="Origin X in source frame, meters"></label>
+          <label>Y · m<input id="origin-y" type="number" value="0" step="any" required aria-label="Origin Y in source frame, meters"></label>
+          <label>Z · m<input id="origin-z" type="number" value="0" step="any" required aria-label="Origin Z in source frame, meters"></label>
+        </div>
+      </section>
+      <section>
+        <h2><span class="step">03</span> Set yaw zero</h2>
+        <p>Pick a direction from the origin. The green arrow becomes +X in the saved cloud; +Y points 90° counterclockwise.</p>
+        <button id="heading-mode" class="wide" aria-pressed="false">Pick +X / yaw-zero direction</button>
+        <label id="yaw-field" style="margin-top:12px">Yaw in source frame · degrees<input id="yaw" type="number" value="0" step="any" required></label>
+      </section>
+      <section>
+        <h2>Save the edited map</h2>
+        <p id="save-description">The full-resolution crop is translated to your origin and rotated about Z. The original map colors are preserved.</p>
+        <label>Output filename<input id="filename" value="map_edited.pcd" autocomplete="off" spellcheck="false"></label>
+        <button id="save" class="wide" disabled>Save new PCD</button>
+        <button id="metadata-save" class="wide secondary" disabled>Save transform JSON</button>
+        <p>Files download through your browser. Use Open PCD to load a binary PCD saved by this mapping launch or editor.</p>
+      </section>
+    </aside>
+    <div class="workspace">
+      <div class="toolbar">
+        <span id="view-label" class="view-label">TOP VIEW · source X / Y</span>
+        <button id="top-view" class="active" aria-pressed="true">Top view · crop</button>
+        <button id="orbit-view" aria-pressed="false">3D view · rotate</button>
+        <button id="fit">Fit map</button>
+        <button id="reset-crop">Reset crop</button>
+        <button id="reset-frame">Reset origin &amp; yaw</button>
+        <button id="save-toolbar" class="save-action" disabled>Save PCD</button>
+      </div>
+      <div id="canvas-wrap">
+        <canvas id="map" tabindex="0" aria-label="Interactive map. In top view drag the four numbered crop corners, or drag elsewhere to pan. In 3D view drag to rotate, and shift-drag or right-drag to pan. Use the wheel to zoom."></canvas>
+        <div id="hint">Drag a corner to crop · wheel to zoom · drag elsewhere to pan</div>
+        <div class="legend"><span id="color-label">Source height Z</span><div id="height-gradient" class="gradient"></div><div class="legend-labels"><span id="z-min">—</span><span id="z-max">—</span></div><div id="cell-label"></div></div>
+      </div>
+      <footer><span id="status" role="status" aria-live="polite">Loading map…</span><span id="position">X — · Y —</span></footer>
+    </div>
+  </main>
+  <script id="map-meta" type="application/json">__MAP_META_JSON__</script>
+  <script id="map-points" type="application/octet-stream">__POINT_DATA_BASE64__</script>
+  <script>
+  'use strict';
+  (() => {
+    const $ = id => document.getElementById(id);
+    const canvas = $('map'), context = canvas.getContext('2d');
+    const controls = [...document.querySelectorAll('button, input')];
+    controls.forEach(control => { control.disabled = true; });
+    $('open-pcd').disabled = $('pcd-file').disabled = false;
+    const MAX_PREVIEW_POINTS = 120000;
+    const EPSILON = 1e-7;
+    let metadata, points, pointWords, colorField = 'intensity', cellSize = 0;
+    let validCount = 0, preview = [], previewColors = [], bounds;
+    let polygon = [], origin = { x: 0, y: 0, z: 0 }, yaw = 0, count = 0;
+    let mode = 'crop', viewMode = 'top', width = 1, height = 1, ratio = 1;
+    let view = { x: 0, y: 0, scale: 1 }, drag = null, dirty = false, countTimer = null;
+    const orbit = { x: 0, y: 0, z: 0, scale: 1, azimuth: -.65, elevation: .75 };
+    let inputsValid = true, ready = false, hoveredHandle = -1, counting = false, countVersion = 0;
+    let depthOrder = [], depthAzimuth = NaN, depthElevation = NaN;
+
+    function setStatus(message, error = false) {
+      $('status').textContent = message;
+      $('status').classList.toggle('error', error);
+    }
+    function decodeBase64(base64) {
+      const encoded = base64.trim();
+      if (encoded.length % 4) throw new Error('Embedded point data has an invalid base64 length.');
+      const padding = encoded.endsWith('==') ? 2 : encoded.endsWith('=') ? 1 : 0;
+      const bytes = new Uint8Array(encoded.length / 4 * 3 - padding);
+      for (let start = 0, offset = 0; start < encoded.length; start += 32768) {
+        const chunk = atob(encoded.slice(start, start + 32768));
+        for (let j = 0; j < chunk.length; j++) bytes[offset++] = chunk.charCodeAt(j);
+      }
+      if (bytes.length % 16) throw new Error('Embedded point data must contain four 32-bit fields per point.');
+      const floats = new Float32Array(bytes.buffer);
+      if (new Uint8Array(new Uint32Array([1]).buffer)[0] !== 1) {
+        const data = new DataView(bytes.buffer);
+        const words = new Uint32Array(bytes.buffer);
+        for (let i = 0; i < floats.length; i++) words[i] = data.getUint32(i * 4, true);
+      }
+      return floats;
+    }
+    function finitePoint(i) {
+      return Number.isFinite(points[i]) && Number.isFinite(points[i + 1]) && Number.isFinite(points[i + 2]);
+    }
+    function cross(a, b, c) { return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x); }
+    function onSegment(x, y, a, b) {
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const lengthSquared = dx * dx + dy * dy;
+      if (lengthSquared === 0) return Math.hypot(x - a.x, y - a.y) <= EPSILON;
+      const area = dx * (y - a.y) - dy * (x - a.x);
+      if (area * area > EPSILON * EPSILON * lengthSquared) return false;
+      return x >= Math.min(a.x, b.x) - EPSILON && x <= Math.max(a.x, b.x) + EPSILON && y >= Math.min(a.y, b.y) - EPSILON && y <= Math.max(a.y, b.y) + EPSILON;
+    }
+    function segmentsIntersect(a, b, c, d) {
+      const abC = cross(a, b, c), abD = cross(a, b, d), cdA = cross(c, d, a), cdB = cross(c, d, b);
+      return ((abC > 0) !== (abD > 0) && (cdA > 0) !== (cdB > 0)) ||
+        onSegment(c.x, c.y, a, b) || onSegment(d.x, d.y, a, b) || onSegment(a.x, a.y, c, d) || onSegment(b.x, b.y, c, d);
+    }
+    function validPolygon(vertices) {
+      if (!Array.isArray(vertices) || vertices.length !== 4 || vertices.some(p => !p || !Number.isFinite(p.x) || !Number.isFinite(p.y))) return false;
+      if (segmentsIntersect(vertices[0], vertices[1], vertices[2], vertices[3]) || segmentsIntersect(vertices[1], vertices[2], vertices[3], vertices[0])) return false;
+      // Use coordinates relative to one vertex to avoid cancellation far from the source origin.
+      const twiceArea = cross(vertices[0], vertices[1], vertices[2]) + cross(vertices[0], vertices[2], vertices[3]);
+      return Math.abs(twiceArea) > EPSILON * EPSILON && vertices.every((p, i) => Math.hypot(p.x - vertices[(i + 1) % 4].x, p.y - vertices[(i + 1) % 4].y) > EPSILON);
+    }
+    function pointInPolygon(x, y, vertices) {
+      let inside = false;
+      for (let i = 0, j = vertices.length - 1; i < vertices.length; j = i++) {
+        const a = vertices[j], b = vertices[i];
+        if (onSegment(x, y, a, b)) return true;
+        if ((a.y > y) !== (b.y > y) && x < (b.x - a.x) * (y - a.y) / (b.y - a.y) + a.x) inside = !inside;
+      }
+      return inside;
+    }
+    function transformPoint(point, frameOrigin, frameYaw) {
+      const dx = point.x - frameOrigin.x, dy = point.y - frameOrigin.y;
+      const cosine = Math.cos(frameYaw), sine = Math.sin(frameYaw);
+      return { ...point, x: cosine * dx + sine * dy, y: -sine * dx + cosine * dy, z: point.z - frameOrigin.z };
+    }
+    function worldToScreen(x, y) { return { x: width / 2 + (x - view.x) * view.scale, y: height / 2 - (y - view.y) * view.scale }; }
+    function screenToWorld(x, y) { return { x: view.x + (x - width / 2) / view.scale, y: view.y - (y - height / 2) / view.scale }; }
+    function cameraCoordinates(x, y, z) {
+      const dx = x - orbit.x, dy = y - orbit.y, dz = z - orbit.z;
+      const c = Math.cos(orbit.azimuth), s = Math.sin(orbit.azimuth);
+      const ce = Math.cos(orbit.elevation), se = Math.sin(orbit.elevation);
+      return { x: dx * c + dy * s, y: (-dx * s + dy * c) * se + dz * ce, depth: (dx * s - dy * c) * ce + dz * se };
+    }
+    function project(x, y, z = 0) {
+      if (viewMode === 'top') return worldToScreen(x, y);
+      const p = cameraCoordinates(x, y, z);
+      return { x: width / 2 + p.x * orbit.scale, y: height / 2 - p.y * orbit.scale, depth: p.depth };
+    }
+    function panOrbit(dx, dy) {
+      const c = Math.cos(orbit.azimuth), s = Math.sin(orbit.azimuth), se = Math.sin(orbit.elevation);
+      orbit.x += (-dx * c - dy * s * se) / orbit.scale;
+      orbit.y += (-dx * s + dy * c * se) / orbit.scale;
+      orbit.z += dy * Math.cos(orbit.elevation) / orbit.scale;
+    }
+    function number(value) { return Number(value.toPrecision(9)).toString(); }
+    function updateInputFields() {
+      // Keep exact numeric values in the controls so editing yaw cannot round a picked origin.
+      $('origin-x').value = String(origin.x); $('origin-y').value = String(origin.y); $('origin-z').value = String(origin.z);
+      $('yaw').value = String(yaw * 180 / Math.PI);
+      inputsValid = true;
+      updateSaveState();
+    }
+    function updateSaveState() {
+      $('save').disabled = $('save-toolbar').disabled = !ready || !inputsValid || counting || !count;
+      $('metadata-save').disabled = !ready || !inputsValid || counting;
+    }
+    function updateCount() {
+      if (!ready) return;
+      clearTimeout(countTimer);
+      countTimer = null;
+      const version = ++countVersion, vertices = polygon.map(p => ({ ...p }));
+      let offset = 0, nextCount = 0;
+      counting = true;
+      $('crop-count').textContent = 'Counting…';
+      updateSaveState();
+      // Yield between chunks so full-resolution selection never locks the drag controls.
+      function step() {
+        if (version !== countVersion) return;
+        const end = Math.min(offset + 80000, points.length);
+        for (; offset < end; offset += 4) if (finitePoint(offset) && pointInPolygon(points[offset], points[offset + 1], vertices)) nextCount++;
+        if (offset < points.length) { countTimer = setTimeout(step, 0); return; }
+        countTimer = null; count = nextCount; counting = false;
+        $('crop-count').textContent = count.toLocaleString(); updateSaveState();
+        if (!count) setStatus('The selected region contains no points. Move its corners before saving.', true);
+      }
+      countTimer = setTimeout(step, 0);
+    }
+    function scheduleCount() {
+      clearTimeout(countTimer);
+      countTimer = null; countVersion++; counting = true;
+      $('crop-count').textContent = 'Release corner to count'; updateSaveState();
+    }
+    function setCrop(vertices) {
+      if (!validPolygon(vertices)) throw new Error('Use four distinct corners with no crossing edges.');
+      polygon = vertices.map(p => ({ x: p.x, y: p.y }));
+      updateCount(); requestDraw();
+    }
+    function setOrigin(next) {
+      if (![next.x, next.y, next.z].every(Number.isFinite)) throw new Error('Origin coordinates must be finite numbers.');
+      origin = { x: next.x, y: next.y, z: next.z };
+      updateInputFields(); requestDraw();
+    }
+    function setYawRadians(value) {
+      if (!Number.isFinite(value)) throw new Error('Yaw must be a finite angle.');
+      yaw = Math.atan2(Math.sin(value), Math.cos(value));
+      updateInputFields(); requestDraw();
+    }
+    function setMode(next) {
+      if (!['crop', 'origin', 'heading'].includes(next)) return;
+      mode = next;
+      setViewMode('top');
+    }
+    function updateModeControls() {
+      for (const name of ['crop', 'origin', 'heading']) {
+        const active = viewMode === 'top' && name === mode;
+        $(name + '-mode').classList.toggle('active', active);
+        $(name + '-mode').setAttribute('aria-pressed', String(active));
+      }
+      $('hint').textContent = viewMode === '3d' ? 'Drag to rotate · shift-drag or right-drag to pan · wheel to zoom · Top view to edit crop' : mode === 'origin' ? 'Click a map cell for XYZ origin · shift-drag or right-drag to pan · wheel to zoom' : mode === 'heading' ? 'Click in the new +X direction from the origin · shift-drag or right-drag to pan' : 'Drag numbered dots to crop · drag the map to pan · wheel to zoom · dark area will be removed';
+      canvas.style.cursor = viewMode === '3d' || mode === 'crop' ? 'grab' : 'crosshair';
+      requestDraw();
+    }
+    function setViewMode(next) {
+      if (!['top', '3d'].includes(next)) return;
+      if (drag) endPointer({ pointerId: drag.pointerId }, true);
+      viewMode = next; hoveredHandle = -1;
+      $('top-view').classList.toggle('active', next === 'top'); $('top-view').setAttribute('aria-pressed', String(next === 'top'));
+      $('orbit-view').classList.toggle('active', next === '3d'); $('orbit-view').setAttribute('aria-pressed', String(next === '3d'));
+      $('view-label').textContent = next === 'top' ? 'TOP VIEW · source X / Y' : '3D VIEW · drag to rotate';
+      $('position').textContent = next === 'top' ? 'X — · Y —' : '3D inspection';
+      updateModeControls();
+    }
+    function resetCrop() {
+      const padding = Math.max(cellSize / 2, Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY, 1) * .001);
+      setCrop([{ x: bounds.minX - padding, y: bounds.minY - padding }, { x: bounds.maxX + padding, y: bounds.minY - padding }, { x: bounds.maxX + padding, y: bounds.maxY + padding }, { x: bounds.minX - padding, y: bounds.maxY + padding }]);
+      setStatus('Crop reset to include every valid point.');
+    }
+    function fit() {
+      if (viewMode === '3d') { fitOrbit(); return; }
+      view.x = (bounds.minX + bounds.maxX) / 2; view.y = (bounds.minY + bounds.maxY) / 2;
+      view.scale = Math.max(.000001, Math.min(Math.max(width - 110, 30) / Math.max(bounds.maxX - bounds.minX + cellSize, .1), Math.max(height - 140, 30) / Math.max(bounds.maxY - bounds.minY + cellSize, .1)));
+      requestDraw();
+    }
+    function fitOrbit() {
+      orbit.x = (bounds.minX + bounds.maxX) / 2; orbit.y = (bounds.minY + bounds.maxY) / 2; orbit.z = (bounds.minZ + bounds.maxZ) / 2;
+      let extentX = .1, extentY = .1;
+      for (const x of [bounds.minX - cellSize / 2, bounds.maxX + cellSize / 2]) for (const y of [bounds.minY - cellSize / 2, bounds.maxY + cellSize / 2]) for (const z of [bounds.minZ, bounds.maxZ]) {
+        const p = cameraCoordinates(x, y, z); extentX = Math.max(extentX, Math.abs(p.x) * 2); extentY = Math.max(extentY, Math.abs(p.y) * 2);
+      }
+      orbit.scale = Math.max(.000001, Math.min(Math.max(width - 110, 30) / extentX, Math.max(height - 140, 30) / extentY));
+      requestDraw();
+    }
+    function requestDraw() {
+      if (dirty) return;
+      dirty = true;
+      requestAnimationFrame(() => { dirty = false; if (ready) draw(); });
+    }
+    function line(a, b, color, lineWidth = 1) {
+      context.beginPath(); context.moveTo(a.x, a.y); context.lineTo(b.x, b.y); context.strokeStyle = color; context.lineWidth = lineWidth; context.stroke();
+    }
+    function arrow(a, b, color, label) {
+      line(a, b, color, 2);
+      const angle = Math.atan2(b.y - a.y, b.x - a.x);
+      context.beginPath(); context.moveTo(b.x, b.y); context.lineTo(b.x - 10 * Math.cos(angle - .42), b.y - 10 * Math.sin(angle - .42)); context.lineTo(b.x - 10 * Math.cos(angle + .42), b.y - 10 * Math.sin(angle + .42)); context.closePath(); context.fillStyle = color; context.fill();
+      context.font = '600 12px system-ui'; context.fillText(label, b.x + 9, b.y - 8);
+    }
+    function drawGrid() {
+      const desired = 90 / view.scale, power = 10 ** Math.floor(Math.log10(desired));
+      const factor = desired / power, step = power * (factor < 2 ? 2 : factor < 5 ? 5 : 10);
+      const lower = screenToWorld(0, height), upper = screenToWorld(width, 0);
+      context.font = '10px system-ui'; context.textAlign = 'left'; context.textBaseline = 'alphabetic';
+      for (let x = Math.ceil(lower.x / step) * step, n = 0; x <= upper.x && n < 100; x += step, n++) {
+        const p = worldToScreen(x, 0); line({ x: p.x, y: 0 }, { x: p.x, y: height }, '#1c2b3c');
+        context.fillStyle = '#61788f'; context.fillText(number(x), p.x + 4, height - 8);
+      }
+      for (let y = Math.ceil(lower.y / step) * step, n = 0; y <= upper.y && n < 100; y += step, n++) {
+        const p = worldToScreen(0, y); line({ x: 0, y: p.y }, { x: width, y: p.y }, '#1c2b3c');
+        context.fillStyle = '#61788f'; context.fillText(number(y), 5, p.y - 5);
+      }
+      context.fillStyle = '#8298ae'; context.fillText('X →', width - 40, height - 8); context.fillText('Y ↑', 7, 56);
+    }
+    function drawOrbitGrid() {
+      const span = Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY, 1);
+      const power = 10 ** Math.floor(Math.log10(span / 10)), step = Math.ceil(span / 10 / power) * power;
+      const minX = Math.floor(bounds.minX / step) * step, maxX = Math.ceil(bounds.maxX / step) * step;
+      const minY = Math.floor(bounds.minY / step) * step, maxY = Math.ceil(bounds.maxY / step) * step;
+      for (let x = minX, n = 0; x <= maxX && n < 100; x += step, n++) line(project(x, minY, bounds.minZ), project(x, maxY, bounds.minZ), '#263746');
+      for (let y = minY, n = 0; y <= maxY && n < 100; y += step, n++) line(project(minX, y, bounds.minZ), project(maxX, y, bounds.minZ), '#263746');
+    }
+    function drawPoints() {
+      const scale = viewMode === 'top' ? view.scale : orbit.scale;
+      const size = Math.max(1.5, cellSize * scale), half = size / 2;
+      let order = null;
+      if (viewMode === '3d') {
+        if (!depthOrder.length || (!drag && (depthAzimuth !== orbit.azimuth || depthElevation !== orbit.elevation))) {
+          const depths = preview.map(i => cameraCoordinates(points[i], points[i + 1], points[i + 2]).depth);
+          depthOrder = preview.map((_, j) => j).sort((a, b) => depths[a] - depths[b]);
+          depthAzimuth = orbit.azimuth; depthElevation = orbit.elevation;
+        }
+        order = depthOrder;
+      }
+      // Coarsen only during rotation/pan. Restore the complete preview on release.
+      const stride = viewMode === '3d' && drag ? Math.max(1, Math.ceil(preview.length / 35000)) : 1;
+      const c = Math.cos(orbit.azimuth), s = Math.sin(orbit.azimuth), se = Math.sin(orbit.elevation);
+      const vx = { x: c * half, y: s * se * half }, vy = { x: s * half, y: -c * se * half };
+      let previousColor = '';
+      for (let k = 0; k < preview.length; k += stride) {
+        const j = order ? order[k] : k, i = preview[j], p = project(points[i], points[i + 1], points[i + 2]);
+        if (p.x < -size || p.x > width + size || p.y < -size || p.y > height + size) continue;
+        if (previewColors[j] !== previousColor) { previousColor = previewColors[j]; context.fillStyle = previousColor; }
+        if (viewMode === 'top' || !cellSize || size < 2) {
+          context.fillRect(p.x - half, p.y - half, size, size);
+        } else {
+          context.beginPath(); context.moveTo(p.x - vx.x - vy.x, p.y - vx.y - vy.y);
+          context.lineTo(p.x + vx.x - vy.x, p.y + vx.y - vy.y); context.lineTo(p.x + vx.x + vy.x, p.y + vx.y + vy.y);
+          context.lineTo(p.x - vx.x + vy.x, p.y - vx.y + vy.y); context.closePath(); context.fill();
+        }
+      }
+    }
+    function polygonPath(handles) {
+      handles.forEach((p, i) => i ? context.lineTo(p.x, p.y) : context.moveTo(p.x, p.y)); context.closePath();
+    }
+    function drawSelection() {
+      const handles = polygon.map(p => project(p.x, p.y, bounds.maxZ + Math.max(cellSize, .02)));
+      if (viewMode === 'top') {
+        // Dim the discarded region without recoloring the retained RViz map cells.
+        context.beginPath(); context.rect(0, 0, width, height); polygonPath(handles);
+        context.fillStyle = '#03070bcc'; context.fill('evenodd');
+      } else {
+        const lower = polygon.map(p => project(p.x, p.y, bounds.minZ));
+        context.beginPath(); polygonPath(lower); context.strokeStyle = '#ffe47799'; context.lineWidth = 1.5; context.stroke();
+        context.setLineDash([4, 5]); handles.forEach((p, i) => line(lower[i], p, '#ffe477aa', 1.5)); context.setLineDash([]);
+      }
+      context.beginPath(); polygonPath(handles); context.strokeStyle = '#091019'; context.lineWidth = 6; context.stroke();
+      context.strokeStyle = '#ffe477'; context.lineWidth = 2.5; context.stroke();
+      handles.forEach((p, i) => {
+        const radius = viewMode === 'top' ? (hoveredHandle === i || (drag && drag.corner === i) ? 17 : 14) : 8;
+        context.beginPath(); context.arc(p.x, p.y, radius + 3, 0, Math.PI * 2); context.fillStyle = '#101925'; context.fill();
+        context.beginPath(); context.arc(p.x, p.y, radius, 0, Math.PI * 2); context.fillStyle = '#ffe477'; context.fill(); context.strokeStyle = '#fff6c7'; context.lineWidth = 2; context.stroke();
+        context.fillStyle = '#171a20'; context.font = `800 ${viewMode === 'top' ? 14 : 10}px system-ui`; context.textAlign = 'center'; context.textBaseline = 'middle'; context.fillText(String(i + 1), p.x, p.y + .5);
+      });
+      context.textAlign = 'left'; context.textBaseline = 'alphabetic';
+    }
+    function draw() {
+      context.setTransform(ratio, 0, 0, ratio, 0, 0);
+      context.fillStyle = '#101925'; context.fillRect(0, 0, width, height);
+      if (viewMode === 'top') drawGrid(); else drawOrbitGrid();
+      drawPoints(); drawSelection();
+      const o = project(origin.x, origin.y, origin.z), axisLength = 76 / (viewMode === 'top' ? view.scale : orbit.scale);
+      arrow(o, project(origin.x + Math.cos(yaw) * axisLength, origin.y + Math.sin(yaw) * axisLength, origin.z), '#69e0c4', '+X · yaw 0');
+      arrow(o, project(origin.x - Math.sin(yaw) * axisLength * .7, origin.y + Math.cos(yaw) * axisLength * .7, origin.z), '#d2b3ff', '+Y');
+      if (viewMode === '3d') arrow(o, project(origin.x, origin.y, origin.z + axisLength * .7), '#7ebaff', '+Z');
+      context.beginPath(); context.arc(o.x, o.y, 5, 0, Math.PI * 2); context.fillStyle = '#f5fbff'; context.fill(); context.strokeStyle = '#10202d'; context.lineWidth = 2; context.stroke();
+      context.font = '11px system-ui'; context.fillStyle = '#e6f3ff'; context.fillText(`Origin · Z ${origin.z.toFixed(3)} m`, o.x + 10, o.y + 20);
+      if (o.x < 0 || o.x > width || o.y < 0 || o.y > height) { context.fillStyle = '#c8d8e8'; context.fillText('Origin is outside this view. Pick a point or change XYZ.', 16, height - 110); }
+    }
+    function pointerPosition(event) { const rect = canvas.getBoundingClientRect(); return { x: event.clientX - rect.left, y: event.clientY - rect.top }; }
+    function handleAt(p) { return polygon.findIndex(corner => { const h = worldToScreen(corner.x, corner.y); return Math.hypot(h.x - p.x, h.y - p.y) <= 25; }); }
+    function pickOrigin(position) {
+      const world = screenToWorld(position.x, position.y), radius = Math.max(18 / view.scale, cellSize * .72);
+      let best = radius * radius, nearest = -1;
+      for (let i = 0; i < points.length; i += 4) {
+        if (!finitePoint(i)) continue;
+        const dx = points[i] - world.x, dy = points[i + 1] - world.y, distance = dx * dx + dy * dy;
+        if (distance < best) { best = distance; nearest = i; }
+      }
+      if (nearest < 0) { setStatus('Click closer to a cloud point, or enter the origin coordinates.', true); return; }
+      setOrigin({ x: points[nearest], y: points[nearest + 1], z: points[nearest + 2] });
+      setStatus(`Origin selected from a measured point: (${number(origin.x)}, ${number(origin.y)}, ${number(origin.z)}) m. You can refine Z below.`);
+      setMode('crop');
+    }
+    canvas.addEventListener('pointerdown', event => {
+      if (!ready || drag || (event.button !== 0 && event.button !== 2)) return;
+      event.preventDefault(); canvas.focus();
+      const p = pointerPosition(event), corner = viewMode === 'top' && mode === 'crop' && !event.shiftKey && event.button === 0 ? handleAt(p) : -1;
+      const rotate = viewMode === '3d' && event.button === 0 && !event.shiftKey;
+      drag = { start: p, last: p, corner, rotate, pan: corner < 0 && !rotate && (viewMode === '3d' || mode === 'crop' || event.shiftKey || event.button === 2), moved: false, pointerId: event.pointerId };
+      canvas.setPointerCapture(event.pointerId);
+      canvas.style.cursor = corner >= 0 ? 'move' : drag.pan || drag.rotate ? 'grabbing' : 'crosshair';
+    });
+    canvas.addEventListener('pointermove', event => {
+      if (!ready) return;
+      const p = pointerPosition(event), world = viewMode === 'top' ? screenToWorld(p.x, p.y) : null;
+      $('position').textContent = world ? `X ${world.x.toFixed(3)} · Y ${world.y.toFixed(3)} m` : `Elevation ${(orbit.elevation * 180 / Math.PI).toFixed(0)}°`;
+      if (!drag) {
+        const nextHover = viewMode === 'top' && mode === 'crop' ? handleAt(p) : -1;
+        if (nextHover !== hoveredHandle) { hoveredHandle = nextHover; requestDraw(); }
+        canvas.style.cursor = viewMode === '3d' ? 'grab' : mode !== 'crop' ? 'crosshair' : hoveredHandle >= 0 ? 'move' : 'grab';
+        return;
+      }
+      if (event.pointerId !== drag.pointerId) return;
+      if (Math.hypot(p.x - drag.start.x, p.y - drag.start.y) > 4) drag.moved = true;
+      if (drag.corner >= 0) {
+        const next = polygon.map((vertex, i) => i === drag.corner ? world : vertex);
+        if (validPolygon(next)) { polygon = next; scheduleCount(); setStatus('Drag the corners to adjust the crop. All heights are included.'); }
+        else setStatus('Corners cannot cross or collapse an edge. Move this dot back to keep a valid region.', true);
+      } else if (drag.rotate) {
+        orbit.azimuth -= (p.x - drag.last.x) * .006;
+        orbit.elevation = Math.max(.06, Math.min(Math.PI / 2 - .02, orbit.elevation + (p.y - drag.last.y) * .006));
+      } else if (drag.pan) {
+        if (viewMode === '3d') panOrbit(p.x - drag.last.x, p.y - drag.last.y);
+        else { view.x -= (p.x - drag.last.x) / view.scale; view.y += (p.y - drag.last.y) / view.scale; }
+      }
+      drag.last = p; requestDraw();
+    });
+    function endPointer(event, cancelled = false) {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      const finished = drag; drag = null;
+      if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+      if (finished.corner >= 0) updateCount();
+      else if (!cancelled && viewMode === 'top' && !finished.pan && !finished.moved) {
+        const p = pointerPosition(event);
+        if (mode === 'origin') pickOrigin(p);
+        else if (mode === 'heading') {
+          const world = screenToWorld(p.x, p.y), dx = world.x - origin.x, dy = world.y - origin.y;
+          if (Math.hypot(dx, dy) * view.scale < 5) setStatus('Pick a direction farther from the origin.', true);
+          else { setYawRadians(Math.atan2(dy, dx)); setStatus(`New +X direction set to ${number(yaw * 180 / Math.PI)}° in the source frame.`); setMode('crop'); }
+        }
+      }
+      canvas.style.cursor = viewMode === '3d' || mode === 'crop' ? 'grab' : 'crosshair'; requestDraw();
+    }
+    canvas.addEventListener('pointerup', event => endPointer(event));
+    canvas.addEventListener('pointercancel', event => endPointer(event, true));
+    canvas.addEventListener('lostpointercapture', event => endPointer(event, true));
+    canvas.addEventListener('contextmenu', event => event.preventDefault());
+    canvas.addEventListener('pointerleave', () => { hoveredHandle = -1; requestDraw(); });
+    canvas.addEventListener('wheel', event => {
+      if (!ready) return;
+      event.preventDefault(); const p = pointerPosition(event);
+      const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? height : 1);
+      const zoom = Math.exp(-Math.max(-200, Math.min(200, delta)) * .002);
+      if (viewMode === '3d') {
+        const oldScale = orbit.scale;
+        orbit.scale = Math.max(.000001, Math.min(1e7, orbit.scale * zoom));
+        panOrbit((p.x - width / 2) * (1 - orbit.scale / oldScale), (p.y - height / 2) * (1 - orbit.scale / oldScale));
+      } else {
+        const before = screenToWorld(p.x, p.y);
+        view.scale = Math.max(.000001, Math.min(1e7, view.scale * zoom));
+        const after = screenToWorld(p.x, p.y); view.x += before.x - after.x; view.y += before.y - after.y;
+      }
+      requestDraw();
+    }, { passive: false });
+    canvas.addEventListener('keydown', event => { if (event.key === 'Escape') setMode('crop'); if (event.key.toLowerCase() === 'f' && ready) fit(); });
+    for (const name of ['crop', 'origin', 'heading']) $(name + '-mode').addEventListener('click', () => setMode(name));
+    $('top-view').addEventListener('click', () => setViewMode('top'));
+    $('orbit-view').addEventListener('click', () => setViewMode('3d'));
+    $('fit').addEventListener('click', () => { if (ready) fit(); });
+    $('reset-crop').addEventListener('click', () => { if (ready) resetCrop(); });
+    $('reset-frame').addEventListener('click', () => { setOrigin({ x: 0, y: 0, z: 0 }); setYawRadians(0); setStatus('Origin and yaw reset to the source frame.'); });
+    for (const id of ['origin-x', 'origin-y', 'origin-z', 'yaw']) $(id).addEventListener('input', () => {
+      inputsValid = ['origin-x', 'origin-y', 'origin-z', 'yaw'].every(field => $(field).value.trim() !== '' && Number.isFinite($(field).valueAsNumber));
+      updateSaveState();
+      if (!inputsValid) { setStatus('Enter finite numbers for all origin coordinates and yaw before saving.', true); return; }
+      origin = { x: $('origin-x').valueAsNumber, y: $('origin-y').valueAsNumber, z: $('origin-z').valueAsNumber };
+      yaw = ($('yaw').valueAsNumber % 360) * Math.PI / 180;
+      setStatus('Coordinate transform updated. The preview remains in the source frame.'); requestDraw();
+    });
+    function exportPoints() {
+      if (!ready || !inputsValid) throw new Error('The map and a valid coordinate transform are required.');
+      if (counting) throw new Error('Wait for the region point count to finish before saving.');
+      if (!count) throw new Error('The selected region contains no points.');
+      const output = new Float32Array(count * 4), cosine = Math.cos(yaw), sine = Math.sin(yaw);
+      const outputWords = new Uint32Array(output.buffer);
+      let offset = 0;
+      for (let i = 0; i < points.length; i += 4) {
+        if (!finitePoint(i) || !pointInPolygon(points[i], points[i + 1], polygon)) continue;
+        const dx = points[i] - origin.x, dy = points[i + 1] - origin.y;
+        const x = cosine * dx + sine * dy, y = -sine * dx + cosine * dy, z = points[i + 2] - origin.z;
+        if (!Number.isFinite(Math.fround(x)) || !Number.isFinite(Math.fround(y)) || !Number.isFinite(Math.fround(z))) throw new Error('The selected origin produces coordinates outside the PCD float32 range.');
+        output[offset++] = x; output[offset++] = y; output[offset++] = z;
+        // Packed RGB is a bit pattern, not a scalar. Preserve every bit through export.
+        outputWords[offset++] = pointWords[i + 3];
+      }
+      return output;
+    }
+    function exportPCD() {
+      const output = exportPoints(), n = output.length / 4;
+      const cellComment = cellSize > 0 ? `# cell_size: ${cellSize}\n` : '';
+      const header = new TextEncoder().encode(`# .PCD v0.7 - Point Cloud Data file format\n${cellComment}VERSION 0.7\nFIELDS x y z ${colorField}\nSIZE 4 4 4 4\nTYPE F F F F\nCOUNT 1 1 1 1\nWIDTH ${n}\nHEIGHT 1\nVIEWPOINT 0 0 0 1 0 0 0\nPOINTS ${n}\nDATA binary\n`);
+      const buffer = new ArrayBuffer(header.length + output.byteLength);
+      new Uint8Array(buffer).set(header);
+      const data = new DataView(buffer);
+      const words = new Uint32Array(output.buffer);
+      for (let i = 0; i < output.length; i++) data.setUint32(header.length + i * 4, words[i], true);
+      return buffer;
+    }
+    function exportTransform() {
+      if (!ready || !inputsValid) throw new Error('The map and a valid coordinate transform are required.');
+      if (counting) throw new Error('Wait for the region point count to finish before saving.');
+      const c = Math.cos(yaw), s = Math.sin(yaw);
+      return {
+        source: metadata.name, source_frame: metadata.frame_id || '', source_point_count: validCount, output_point_count: count,
+        crop_xy_source_m: polygon.map(p => ({ ...p })), crop_includes_boundary: true, crop_z: 'all',
+        origin_source_m: { ...origin }, yaw_source_rad: yaw, yaw_source_deg: yaw * 180 / Math.PI,
+        convention: 'p_output = Rz(-yaw_source_rad) * (p_source - origin_source_m); +Z unchanged in direction',
+        source_to_output: [[c, s, 0, -c * origin.x - s * origin.y], [-s, c, 0, s * origin.x - c * origin.y], [0, 0, 1, -origin.z], [0, 0, 0, 1]],
+        fields: ['x', 'y', 'z', colorField], color_field: colorField, cell_size: cellSize || null,
+        source_topic: metadata.source_topic || '', units: 'meters',
+      };
+    }
+    function outputFilename() {
+      let name = $('filename').value.trim().replace(/[\\/:*?"<>|\x00-\x1f]/g, '_');
+      if (!name) name = 'map_edited.pcd';
+      if (!/\.pcd$/i.test(name)) name += '.pcd';
+      return name;
+    }
+    function download(blob, filename) {
+      const url = URL.createObjectURL(blob), link = document.createElement('a');
+      link.href = url; link.download = filename; document.body.appendChild(link); link.click(); link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    }
+    $('save').addEventListener('click', async () => {
+      $('save').disabled = $('save-toolbar').disabled = true; setStatus('Preparing the full-resolution binary PCD…');
+      await new Promise(resolve => setTimeout(resolve, 30));
+      try { download(new Blob([exportPCD()], { type: 'application/octet-stream' }), outputFilename()); setStatus(`Downloaded ${outputFilename()} with ${count.toLocaleString()} transformed points.`); }
+      catch (error) { setStatus(error.message, true); }
+      finally { updateSaveState(); }
+    });
+    $('save-toolbar').addEventListener('click', () => $('save').click());
+    $('metadata-save').addEventListener('click', () => {
+      try { download(new Blob([JSON.stringify(exportTransform(), null, 2) + '\n'], { type: 'application/json' }), outputFilename().replace(/\.pcd$/i, '_transform.json')); setStatus('Downloaded crop corners, origin, yaw and the source-to-output transformation matrix.'); }
+      catch (error) { setStatus(error.message, true); }
+    });
+    new ResizeObserver(entries => {
+      const firstSize = width === 1 && height === 1;
+      width = Math.max(1, entries[0].contentRect.width); height = Math.max(1, entries[0].contentRect.height);
+      ratio = Math.min(window.devicePixelRatio || 1, 2); canvas.width = Math.round(width * ratio); canvas.height = Math.round(height * ratio);
+      if (ready && firstSize) { fit(); fitOrbit(); } else requestDraw();
+    }).observe($('canvas-wrap'));
+    function initializeMap(nextMetadata, nextPoints) {
+      if (drag) endPointer({ pointerId: drag.pointerId }, true);
+      clearTimeout(countTimer); countVersion++; ready = false;
+      metadata = nextMetadata; points = nextPoints; pointWords = new Uint32Array(points.buffer);
+      colorField = metadata.color_field === 'rgb' ? 'rgb' : 'intensity';
+      cellSize = Number.isFinite(metadata.cell_size) && metadata.cell_size > 0 ? metadata.cell_size : 0;
+      validCount = 0; preview = []; previewColors = []; depthOrder = []; count = 0;
+      origin = { x: 0, y: 0, z: 0 }; yaw = 0; updateInputFields();
+      bounds = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity, minZ: Infinity, maxZ: -Infinity };
+      for (let i = 0; i < points.length; i += 4) {
+        if (!finitePoint(i)) continue;
+        validCount++;
+        bounds.minX = Math.min(bounds.minX, points[i]); bounds.maxX = Math.max(bounds.maxX, points[i]);
+        bounds.minY = Math.min(bounds.minY, points[i + 1]); bounds.maxY = Math.max(bounds.maxY, points[i + 1]);
+        bounds.minZ = Math.min(bounds.minZ, points[i + 2]); bounds.maxZ = Math.max(bounds.maxZ, points[i + 2]);
+      }
+      if (!validCount) throw new Error('This map contains no finite XYZ points. Record a map before opening the editor.');
+      // Evenly sample only the preview; selection counts, point picking and exports always use all points.
+      const stride = Math.max(1, Math.ceil(validCount / MAX_PREVIEW_POINTS));
+      for (let i = 0, index = 0; i < points.length; i += 4) {
+        if (!finitePoint(i)) continue;
+        if (index++ % stride === 0) {
+          preview.push(i);
+          if (colorField === 'rgb') {
+            previewColors.push('#' + (pointWords[i + 3] & 0xffffff).toString(16).padStart(6, '0'));
+          } else {
+            const t = Math.max(0, Math.min(1, (points[i + 2] - bounds.minZ) / Math.max(bounds.maxZ - bounds.minZ, .001)));
+            previewColors.push(`hsl(${202 - t * 140} ${50 + t * 8}% ${43 + t * 28}%)`);
+          }
+        }
+      }
+      $('map-description').textContent = `${metadata.name || 'map.pcd'} · ${metadata.source_topic || metadata.frame_id || 'source frame'} · ${validCount.toLocaleString()} points · ${colorField === 'rgb' ? 'original RGB' : 'height preview'}`;
+      $('total-count').textContent = validCount.toLocaleString();
+      $('color-label').textContent = colorField === 'rgb' ? 'Original map RGB colors' : 'Source height Z';
+      $('height-gradient').hidden = colorField === 'rgb';
+      $('cell-label').textContent = cellSize ? `${number(cellSize)} m cells · yellow boundary keeps cell centers` : 'Yellow boundary keeps point centers';
+      $('z-min').textContent = `Z ${bounds.minZ.toFixed(3)} m`; $('z-max').textContent = `${bounds.maxZ.toFixed(3)} m`;
+      $('save-description').textContent = `The full-resolution crop is translated to your origin and rotated about Z. ${colorField === 'rgb' ? 'The original map RGB colors are preserved exactly.' : 'Intensity is preserved.'}`;
+      $('filename').value = String(metadata.name || 'map').replace(/^.*[\\/]/, '').replace(/\.pcd$/i, '') + '_edited.pcd';
+      ready = true; controls.forEach(control => { control.disabled = false; }); setMode('crop'); resetCrop(); fit(); fitOrbit();
+      setStatus(`${preview.length.toLocaleString()} points in preview · all ${validCount.toLocaleString()} points used when saving.`);
+      window.mapEditor = Object.freeze({
+        getState: () => ({ metadata: { ...metadata }, polygon: polygon.map(p => ({ ...p })), origin: { ...origin }, yaw, count, counting, validCount, previewCount: preview.length, view: { ...view }, orbit: { ...orbit }, width, height, mode, viewMode }),
+        setCrop, setOrigin, setYawRadians, setMode, setViewMode, fit, resetCrop, worldToScreen, screenToWorld,
+        pointInPolygon, validPolygon, transformPoint, exportPoints, exportPCD, exportTransform,
+      });
+      window.dispatchEvent(new Event('map-editor-ready'));
+    }
+    function parsePCD(buffer, name) {
+      const prefix = new TextDecoder('ascii').decode(new Uint8Array(buffer, 0, Math.min(buffer.byteLength, 65536)));
+      const marker = /(?:^|\r?\n)DATA[ \t]+binary[ \t]*\r?\n/i.exec(prefix);
+      if (!marker) throw new Error('Open a binary PCD saved by mod_mapping or this editor. ASCII and compressed PCD are not supported here.');
+      const offset = marker.index + marker[0].length, header = prefix.slice(0, offset), attributes = {};
+      for (const line of header.split(/\r?\n/)) {
+        const parts = line.trim().split(/\s+/);
+        if (parts[0] && !parts[0].startsWith('#')) attributes[parts[0].toUpperCase()] = parts.slice(1);
+      }
+      const fields = attributes.FIELDS || [], types = attributes.TYPE || [], sizes = attributes.SIZE || [], counts = attributes.COUNT || ['1', '1', '1', '1'];
+      if (fields.length !== 4 || fields.slice(0, 3).join(' ') !== 'x y z' || !['rgb', 'intensity'].includes(fields[3]) || sizes.join(' ') !== '4 4 4 4' || counts.join(' ') !== '1 1 1 1' || types.length !== 4 || types.slice(0, 3).join(' ') !== 'F F F' || (types[3] !== 'F' && !(fields[3] === 'rgb' && types[3] === 'U'))) {
+        throw new Error('This editor opens binary PCD with four fields: x y z rgb (or intensity), as saved by mod_mapping.');
+      }
+      const n = Number((attributes.POINTS || [Number(attributes.WIDTH?.[0]) * Number(attributes.HEIGHT?.[0] || 1)])[0]);
+      if (!Number.isSafeInteger(n) || n <= 0 || n * 16 > buffer.byteLength - offset) throw new Error('The PCD point count is invalid or its binary data is incomplete.');
+      const result = new Float32Array(n * 4), words = new Uint32Array(result.buffer), source = new DataView(buffer, offset, n * 16);
+      for (let i = 0; i < words.length; i++) words[i] = source.getUint32(i * 4, true);
+      const cellMatch = /^#[ \t]*cell_size:[ \t]*([^\r\n]+)/mi.exec(header);
+      const frameMatch = /^#[ \t]*frame_id:[ \t]*([^\r\n]+)/mi.exec(header);
+      const spacing = cellMatch ? Number(cellMatch[1].trim()) : fields[3] === 'rgb' ? .2 : 0;
+      return { metadata: { name, frame_id: frameMatch ? frameMatch[1].trim() : '', color_field: fields[3], cell_size: Number.isFinite(spacing) && spacing > 0 ? spacing : 0 }, points: result };
+    }
+    function loadError(error) {
+      if (!ready) {
+        controls.forEach(control => { control.disabled = true; });
+        $('open-pcd').disabled = $('pcd-file').disabled = false;
+        $('map-description').textContent = 'Open a binary map.pcd to start editing';
+      }
+      setStatus(error.message, true);
+    }
+    $('open-pcd').addEventListener('click', () => $('pcd-file').click());
+    let fileLoadVersion = 0;
+    $('pcd-file').addEventListener('change', async () => {
+      const file = $('pcd-file').files[0]; $('pcd-file').value = '';
+      if (!file) return;
+      const version = ++fileLoadVersion;
+      setStatus(`Opening ${file.name} locally…`);
+      try {
+        const buffer = await file.arrayBuffer();
+        if (version !== fileLoadVersion) return;
+        const loaded = parsePCD(buffer, file.name); initializeMap(loaded.metadata, loaded.points);
+      } catch (error) { if (version === fileLoadVersion) loadError(error); }
+    });
+    try {
+      if ($('map-meta').textContent.trim().startsWith('__')) {
+        $('map-description').textContent = 'Open your saved map.pcd to start editing';
+        $('hint').textContent = 'Choose Open PCD above, then select the binary map.pcd saved by mod_mapping.';
+        setStatus('No map loaded. Open PCD reads your file locally; no server or upload is needed.');
+      } else initializeMap(JSON.parse($('map-meta').textContent), decodeBase64($('map-points').textContent));
+    } catch (error) { loadError(error); }
+  })();
+  </script>
+</body>
+</html>

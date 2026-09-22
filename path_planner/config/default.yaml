@@ -1,0 +1,126 @@
+vehicle:
+  mass_kg: 3.0
+  drill_mass_kg: 3.5
+  hover_power_w: 550.0
+  forward_flight_power_w: 500.0
+  takeoff_power_w: 750.0
+  landing_power_w: 400.0
+  # Flight powers above are measured/reference values at 3 kg. The aerodynamic
+  # share is scaled with the rotorcraft induced-power approximation P ~ m^1.5.
+  flight_reference_mass_kg: 3.0
+  flight_power_mass_exponent: 1.5
+  flight_fixed_power_fraction: 0.10
+  # Drill avionics/communications draw while landed at a staging pose with
+  # propulsion stopped. Waiting at Home before departure remains powered off.
+  drill_ground_wait_power_w: 10.0
+  ground_electronics_power_w: 15.0
+  ground_max_speed_mps: 1.0
+  air_max_speed_mps: 2.0
+  takeoff_time_s: 3.0
+  landing_time_s: 3.0
+  max_slope_deg: 15.0
+  rolling_resistance_coefficient: 0.08
+  roughness_rolling_resistance_gain: 0.35
+  drivetrain_efficiency: 0.70
+  max_drive_mechanical_power_w: 120.0
+  roughness_speed_loss: 0.70
+  min_ground_speed_mps: 0.20
+
+batteries:
+  reserve_ratio: 0.20
+  rover:
+    chemistry: LiPo
+    series_cells: 6
+    nominal_voltage_v: 22.2
+    capacity_ah: 2.2
+    nominal_energy_wh: 48.84
+  drill:
+    chemistry: LiPo
+    series_cells: 6
+    nominal_voltage_v: 22.2
+    capacity_ah: 3.3
+    nominal_energy_wh: 73.26
+
+aerial:
+  cruise_altitude_m: 5.0
+  drill_staging_enabled: true
+  drill_staging_radius_m: 4.0
+  drill_staging_min_standoff_m: 1.5
+  drill_staging_sample_step_m: 1.0
+  drill_final_hop_altitude_m: 1.5
+  safe_landing_threshold: 5.0
+
+continuous_planner:
+  trunk_connection_k: 12
+  trunk_connection_radius_m: 11.0
+  trunk_air_connection_radius_m: 12.0
+  formation_radius_m: 6.0
+  # Rovers move concurrently; only their entry into the common branch region
+  # is offset to avoid co-location at the abstract branch point.
+  formation_separation_time_s: 0.75
+  branch_refinement_enabled: true
+  # Screen the whole-map branch roadmap, then fully evaluate this many B and C
+  # candidates (up to N^2 exact common-trunk combinations).
+  branch_global_candidate_limit: 16
+  min_formation_branch_standoff_m: 2.6
+  connector_step_m: 0.45
+  max_curvature_1pm: 0.65
+  footprint_sample_step_m: 0.4
+  max_roll_deg: 12.0
+  max_pitch_deg: 12.0
+  docking_energy_wh: 0.8
+  undocking_energy_wh: 0.2
+
+continuous_astar:
+  xy_resolution_m: 7.0
+  heading_bins: 8
+  heading_variants_per_position: 4
+  target_heading_bins: 8
+  branch_angle_bins: 12
+  branch_variants_per_pose: 2
+  max_dock_configurations: 88
+  neighbor_k: 10
+  connection_radius_m: 18.0
+  target_connections_per_node: 2
+  home_connection_k: 14
+  max_expansions: 1200
+  heuristic_weight: 1.0
+
+superdrill_baseline:
+  mass_kg: 6.5
+  ground_sample_step_m: 0.25
+  safe_landing_threshold: 5.0
+  cruise_altitude_m: 5.0
+  allow_diagonal_motion: true
+
+global_benchmark:
+  max_dock_events: 3
+  transcription_intervals: 8
+  relative_gap: 0.01
+  time_limit_s: 300.0
+
+platform:
+  payload_model: drill_mass_shared_by_rovers
+  rover_offsets:
+    - {x: 0.9, y: 0.9, theta: 0.0}
+    - {x: 0.9, y: -0.9, theta: 0.0}
+    - {x: -0.9, y: 0.9, theta: 3.141592653589793}
+    - {x: -0.9, y: -0.9, theta: 3.141592653589793}
+  platform_footprint:
+    length_m: 2.6
+    width_m: 2.6
+  rover_footprint:
+    length_m: 0.8
+    width_m: 0.6
+
+docking:
+  fixed_slot_assignment:
+    rover_1: slot_front_left
+    rover_2: slot_front_right
+    rover_3: slot_rear_left
+    rover_4: slot_rear_right
+  slots:
+    slot_front_left: {x: 0.9, y: 0.9, theta: 0.0}
+    slot_front_right: {x: 0.9, y: -0.9, theta: 0.0}
+    slot_rear_left: {x: -0.9, y: 0.9, theta: 3.141592653589793}
+    slot_rear_right: {x: -0.9, y: -0.9, theta: 3.141592653589793}

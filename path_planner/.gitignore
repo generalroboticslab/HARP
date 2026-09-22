@@ -1,0 +1,6 @@
+# Generated planner output and local Python files.
+/results/
+/.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/

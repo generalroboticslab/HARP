@@ -1,0 +1,106 @@
+{
+  "source": "FAST-LIO2 accumulated PCD point cloud",
+  "pcd_path": "/home/grlnuc/Documents/mod_algo/outputs/fast_lio_lidar_20260825_162129/lidar_20260825_162410_mid360_fast_lio.pcd",
+  "pcd_header": {
+    "version": [
+      "0.7"
+    ],
+    "fields": [
+      "x",
+      "y",
+      "z",
+      "intensity",
+      "normal_x",
+      "normal_y",
+      "normal_z",
+      "curvature"
+    ],
+    "size": [
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4
+    ],
+    "type": [
+      "F",
+      "F",
+      "F",
+      "F",
+      "F",
+      "F",
+      "F",
+      "F"
+    ],
+    "count": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "width": 6255506,
+    "height": 1,
+    "viewpoint": [
+      "0",
+      "0",
+      "0",
+      "1",
+      "0",
+      "0",
+      "0"
+    ],
+    "points": 6255506,
+    "data": "binary",
+    "line_count": 11
+  },
+  "coordinate_transform": {
+    "invert_z": true,
+    "reason": "compensate for an upside-down LiDAR mount"
+  },
+  "requested_bounds_xy_m": [
+    -100.0,
+    -27.0,
+    -30.0,
+    30.0
+  ],
+  "ignore_surface_height": true,
+  "resolution_m": 1.0,
+  "rows": 61,
+  "columns": 74,
+  "size_x_m": 73.0,
+  "size_y_m": 60.0,
+  "local_enu_grid_origin_m": [
+    -100.0,
+    -30.0
+  ],
+  "array_orientation": "north-up: row 0 is maximum y/northing; load_planner_terrain flips for TerrainMap",
+  "input_point_count": 6255506,
+  "accepted_point_count": 287115,
+  "observed_cell_count": 4475,
+  "unknown_cells_are_unsafe": true,
+  "planner_elevation": "ground",
+  "estimator": {
+    "ground": "0.10 z quantile, 5 m grey opening, median, Gaussian smoothing",
+    "surface": "0.95 z quantile",
+    "roughness": "interquartile z range q75 - q25",
+    "z_bin_m": 0.1,
+    "minimum_points_per_cell": 3,
+    "crop_quantile": 0.001,
+    "padding_m": 2.0,
+    "note": "surface mode saves the top-envelope 2.5D surface as elevation_local_m; ground mode saves the smoothed low-return ground estimate"
+  },
+  "thresholds": {
+    "obstacle_height_m": 1.5,
+    "obstacle_slope_deg": 9.0,
+    "landing_height_m": 0.5,
+    "landing_roughness_m": 0.3,
+    "landing_slope_deg": 8.0
+  }
+}

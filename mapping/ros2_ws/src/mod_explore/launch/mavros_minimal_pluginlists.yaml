@@ -1,0 +1,40 @@
+# MAVROS plugin list that matches px4_pluginlists.yaml (explicit allowlist).
+# Loads all main MAVROS plugins; excludes only what px4_pluginlists denylists
+# (image_pub, vibration, distance_sensor, rangefinder, wheel_odometry).
+# Use this for reliable arming while keeping a single config in scout.
+#
+# Use with: uav_follower_gazebo.launch or mavros_follower_minimal.launch
+#
+/**:
+  ros__parameters:
+    plugin_allowlist:
+      # System (required)
+      - sys_status
+      - sys_time
+      
+      # State / sensors
+      - imu
+      - global_position
+      - local_position
+      # - altitude
+
+      # Arming / command / params
+      - param
+      - command
+      # - rc_io
+      # - manual_control
+      
+      # Setpoints
+      - setpoint_velocity
+      - setpoint_raw
+      - setpoint_position
+      - setpoint_attitude
+      # - setpoint_accel
+      # - setpoint_trajectory
+
+      # Position / mission
+      - home_position
+      # - waypoint
+
+      # Extras (not in px4 denylist)
+      - esc_status

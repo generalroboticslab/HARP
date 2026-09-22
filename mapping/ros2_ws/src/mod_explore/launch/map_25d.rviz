@@ -1,0 +1,115 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+  - Class: rviz_common/Views
+    Name: Views
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Class: rviz_default_plugins/Grid
+      Name: Grid
+      Enabled: true
+      Value: true
+      Cell Size: 1
+      Plane Cell Count: 40
+      Reference Frame: <Fixed Frame>
+      Color: 120; 120; 120
+      Alpha: 0.3
+    - Class: rviz_default_plugins/PointCloud2
+      Name: Colored 2.5D map
+      Enabled: true
+      Value: true
+      Alpha: 1
+      Color Transformer: RGB8
+      Position Transformer: XYZ
+      Style: Flat Squares
+      Size (m): 0.2
+      Size (Pixels): 3
+      Decay Time: 0
+      Selectable: true
+      Use Fixed Frame: true
+      Topic:
+        Value: /explore_map_color
+        Depth: 1
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Durability Policy: Transient Local
+        Filter size: 10
+    - Class: rviz_default_plugins/Map
+      Name: Occupancy map
+      Enabled: false
+      Value: false
+      Alpha: 0.7
+      Color Scheme: map
+      Draw Behind: true
+      Topic:
+        Value: /explore_map
+        Depth: 1
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Durability Policy: Transient Local
+        Filter size: 10
+      Use Timestamp: false
+    - Class: rviz_default_plugins/Odometry
+      Name: Corrected odometry
+      Enabled: true
+      Value: true
+      Keep: 1
+      Position Tolerance: 0.1
+      Angle Tolerance: 0.1
+      Covariance:
+        Value: false
+      Shape:
+        Value: Axes
+        Alpha: 1
+        Axes Length: 0.8
+        Axes Radius: 0.04
+      Topic:
+        Value: /explore_odom
+        Depth: 5
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Durability Policy: Volatile
+        Filter size: 10
+    - Class: rviz_default_plugins/Marker
+      Name: Trajectory
+      Enabled: true
+      Value: true
+      Topic:
+        Value: /explore_traj_marker
+        Depth: 1
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Durability Policy: Transient Local
+        Filter size: 10
+  Enabled: true
+  Global Options:
+    Fixed Frame: camera_init
+    Background Color: 35; 35; 35
+    Frame Rate: 30
+  Name: root
+  Tools:
+    - Class: rviz_default_plugins/Interact
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/Select
+    - Class: rviz_default_plugins/FocusCamera
+    - Class: rviz_default_plugins/Measure
+  Transformation:
+    Current:
+      Class: rviz_default_plugins/TF
+  Value: true
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Name: Current View
+      Distance: 25
+      Pitch: 0.8
+      Yaw: 0.8
+      Target Frame: <Fixed Frame>
+      Focal Point:
+        X: 0
+        Y: 0
+        Z: 0
+Window Geometry:
+  Width: 1200
+  Height: 800
