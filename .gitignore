@@ -1,0 +1,15 @@
+# Preserve the selected Creo saves despite numeric-suffix ignore rules in the
+# surrounding paper workspace. Keep these rules if this folder becomes a repo.
+!rover/cad/*.asm.[0-9]*
+!rover/cad/*.prt.[0-9]*
+!drill/cad/*.asm.[0-9]*
+!drill/cad/*.prt.[0-9]*
+
+# Local CAD session files and desktop metadata.
+trail.txt*
+*.log
+*.log.[0-9]*
+*.lck
+*.lock
+.DS_Store
+Thumbs.db
