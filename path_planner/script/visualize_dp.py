@@ -5,7 +5,7 @@ from typing import Any
 
 import numpy as np
 
-from .unified_team_scenarios import make_unified_team_scenario
+from .terrain import TerrainMap
 from .visualize_html3d import (
     _html,
     _state_point,
@@ -14,17 +14,15 @@ from .visualize_html3d import (
 )
 
 
-def export_unified_team_html3d(
+def export_dp_html3d(
     result: dict[str, Any],
     output: str | Path,
     z_scale: float = 1.0,
     surface_layer: str = "combined_cost",
     *,
-    terrain: Any | None = None,
+    terrain: TerrainMap,
 ) -> Path:
     """Write a self-contained interactive HTML view of the one-state team path."""
-    if terrain is None:
-        terrain = make_unified_team_scenario(result["scenario"]).terrain
     layer = _surface_layer(terrain, surface_layer)
     display_min, display_max = _surface_display_range(layer, surface_layer)
     cruise_clearance_m = float(
@@ -94,7 +92,7 @@ def export_unified_team_html3d(
 
     scene = {
         "title": (
-            f"{result.get('planner', 'Unified Five-Agent Hybrid A*')}: "
+            f"{result.get('planner', 'Air-Ground Dynamic Programming')}: "
             f"{result['scenario']} | {result.get('objective_energy_wh', float('inf')):.3f} Wh"
         ),
         "success": bool(result.get("success")),

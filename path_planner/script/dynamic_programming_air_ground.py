@@ -14,15 +14,14 @@ import numpy as np
 
 from .config import load_config
 from .pcd_25d import load_planner_terrain
-from .terrain import TerrainMap
-from .unified_team_hybrid_astar import (
+from .terrain import TerrainMap, make_default_terrain
+from .team_model import (
     TeamEdge,
     TeamState,
-    UnifiedFiveAgentHybridAStar,
-    UnifiedTeamConfig,
+    TeamEnergyModel,
+    TeamConfig,
 )
-from .unified_team_scenarios import make_unified_team_scenario
-from .visualize_unified_team import export_unified_team_html3d
+from .visualize_dp import export_dp_html3d
 
 
 Mode = Literal["assembled_drive", "disassembled_flight"]
@@ -55,7 +54,7 @@ class TwoLayerState:
 class TwoLayerAirGroundDP:
     """Exact shortest-path DP on the requested ``(x, y, ground/air)`` lattice."""
 
-    _MOVES = UnifiedFiveAgentHybridAStar._MOVES
+    _MOVES = TeamEnergyModel._MOVES
 
     def __init__(
         self,
@@ -70,7 +69,7 @@ class TwoLayerAirGroundDP:
         self.target = (float(target[0]), float(target[1]))
         self.initial_conditions = initial_conditions
         self.config = config
-        self.team_config = UnifiedTeamConfig(
+        self.team_config = TeamConfig(
             grid_resolution_m=terrain.resolution,
             heading_bins=8,
             connector_step_m=0.35,
@@ -83,18 +82,17 @@ class TwoLayerAirGroundDP:
             minimum_flight_leg_m=1.0,
             maximum_flight_leg_m=None,
             require_ground_and_air=False,
-            heuristic_weight=1.0,
         )
         first = initial_conditions[0]
-        self.energy_model = UnifiedFiveAgentHybridAStar(
+        self.energy_model = TeamEnergyModel(
             terrain=terrain,
             home=(first.x, first.y),
             target=self.target,
             vehicle_cfg=config["vehicle"],
             platform_cfg=config["platform"],
             battery_cfg=config["batteries"],
-            docking_energy_wh=float(config["continuous_planner"].get("docking_energy_wh", 0.8)),
-            undocking_energy_wh=float(config["continuous_planner"].get("undocking_energy_wh", 0.2)),
+            docking_energy_wh=float(config["dp"].get("docking_energy_wh", 0.8)),
+            undocking_energy_wh=float(config["dp"].get("undocking_energy_wh", 0.2)),
             config=self.team_config,
         )
         self.positions = [
@@ -270,15 +268,15 @@ class TwoLayerAirGroundDP:
             states.append(next_state)
             edges.append(edge)
             cursor = next_state
-        helper = UnifiedFiveAgentHybridAStar(
+        helper = TeamEnergyModel(
             self.terrain,
             (initial.x, initial.y),
             self.target,
             self.config["vehicle"],
             self.config["platform"],
             self.config["batteries"],
-            float(self.config["continuous_planner"].get("docking_energy_wh", 0.8)),
-            float(self.config["continuous_planner"].get("undocking_energy_wh", 0.2)),
+            float(self.config["dp"].get("docking_energy_wh", 0.8)),
+            float(self.config["dp"].get("undocking_energy_wh", 0.2)),
             self.team_config,
         )
         heading_bin = helper._heading_bin(
@@ -333,12 +331,12 @@ class MultiStartAirGroundDP:
     """Backward shortest-path dynamic programming for many initial poses.
 
     One reverse Dijkstra solve evaluates the Bellman cost-to-go function from a
-    fixed assembled target. Its state and physical edge costs match the unified
-    team planner; special start nodes and the target connect to the 2-D lattice
-    in the same way as its start/target sentinels.
+    fixed assembled target. The team energy model supplies physical edge costs;
+    special start nodes and the target connect to the 2-D lattice through the
+    model's start/target sentinels.
     """
 
-    _MOVES = UnifiedFiveAgentHybridAStar._MOVES
+    _MOVES = TeamEnergyModel._MOVES
 
     def __init__(
         self,
@@ -346,7 +344,7 @@ class MultiStartAirGroundDP:
         target: tuple[float, float],
         initial_conditions: list[InitialCondition],
         config: dict[str, Any],
-        team_config: UnifiedTeamConfig,
+        team_config: TeamConfig,
         *,
         ground_only: bool = False,
         takeoff_y_range_m: tuple[float, float] | None = None,
@@ -373,15 +371,15 @@ class MultiStartAirGroundDP:
             raise ValueError("the multi-start DP currently requires an unlimited maximum flight leg")
 
         first = initial_conditions[0]
-        self.energy_model = UnifiedFiveAgentHybridAStar(
+        self.energy_model = TeamEnergyModel(
             terrain=terrain,
             home=(first.x, first.y),
             target=self.target,
             vehicle_cfg=config["vehicle"],
             platform_cfg=config["platform"],
             battery_cfg=config["batteries"],
-            docking_energy_wh=float(config["continuous_planner"].get("docking_energy_wh", 0.8)),
-            undocking_energy_wh=float(config["continuous_planner"].get("undocking_energy_wh", 0.2)),
+            docking_energy_wh=float(config["dp"].get("docking_energy_wh", 0.8)),
+            undocking_energy_wh=float(config["dp"].get("undocking_energy_wh", 0.2)),
             config=team_config,
         )
         self.positions: list[tuple[float, float]] = []
@@ -671,15 +669,15 @@ class MultiStartAirGroundDP:
         peak_open: int,
     ) -> dict[str, Any]:
         initial = self.initial_conditions[index]
-        helper = UnifiedFiveAgentHybridAStar(
+        helper = TeamEnergyModel(
             terrain=self.terrain,
             home=(initial.x, initial.y),
             target=self.target,
             vehicle_cfg=self.config["vehicle"],
             platform_cfg=self.config["platform"],
             battery_cfg=self.config["batteries"],
-            docking_energy_wh=float(self.config["continuous_planner"].get("docking_energy_wh", 0.8)),
-            undocking_energy_wh=float(self.config["continuous_planner"].get("undocking_energy_wh", 0.2)),
+            docking_energy_wh=float(self.config["dp"].get("docking_energy_wh", 0.8)),
+            undocking_energy_wh=float(self.config["dp"].get("undocking_energy_wh", 0.2)),
             config=self.team_config,
         )
         if initial_state not in value:
@@ -749,7 +747,7 @@ class MultiStartAirGroundDP:
     def _team_state(
         self,
         state: DPState,
-        helper: UnifiedFiveAgentHybridAStar,
+        helper: TeamEnergyModel,
         initial_index: int,
     ) -> TeamState:
         if state.node == self.start_nodes[initial_index] and state.node not in self.regular_index_by_node:
@@ -921,7 +919,7 @@ def load_case_1_terrain(html_path: str | Path) -> TerrainMap:
     html = html_path.read_text(encoding="utf-8")
     scene_text = html.split("const scene = ", 1)[1].split(";\n", 1)[0]
     scene = json.loads(scene_text)
-    terrain = make_unified_team_scenario("hybrid_challenge").terrain
+    terrain = make_default_terrain()
     if scene["width"] != terrain.width or scene["height"] != terrain.height:
         raise ValueError("HTML dimensions do not match the hybrid_challenge source map")
     if not np.allclose(np.asarray(scene["elevation"]), terrain.elevation, atol=5.1e-5):
@@ -958,17 +956,17 @@ def _full_dp_team_config(
     config: dict[str, Any],
     *,
     require_ground_and_air: bool = True,
-) -> UnifiedTeamConfig:
-    continuous = config.get("continuous_planner", {})
+) -> TeamConfig:
+    dp = config.get("dp", {})
     aerial = config.get("aerial", {})
-    return UnifiedTeamConfig(
+    return TeamConfig(
         grid_resolution_m=terrain.resolution,
         heading_bins=8,
-        connector_step_m=float(continuous.get("connector_step_m", 0.35)),
-        footprint_sample_step_m=float(continuous.get("footprint_sample_step_m", 0.4)),
+        connector_step_m=float(dp.get("connector_step_m", 0.35)),
+        footprint_sample_step_m=float(dp.get("footprint_sample_step_m", 0.4)),
         max_slope_deg=float(config["vehicle"].get("max_slope_deg", 15.0)),
-        max_roll_deg=float(continuous.get("max_roll_deg", 12.0)),
-        max_pitch_deg=float(continuous.get("max_pitch_deg", 12.0)),
+        max_roll_deg=float(dp.get("max_roll_deg", 12.0)),
+        max_pitch_deg=float(dp.get("max_pitch_deg", 12.0)),
         safe_landing_threshold=float(aerial.get("safe_landing_threshold", 5.0)),
         cruise_altitude_m=float(aerial.get("cruise_altitude_m", 5.0)),
         air_obstacle_clearance_m=0.75,
@@ -978,7 +976,6 @@ def _full_dp_team_config(
         minimum_flight_leg_m=terrain.resolution,
         maximum_flight_leg_m=None,
         require_ground_and_air=require_ground_and_air,
-        heuristic_weight=1.0,
     )
 
 
@@ -1878,7 +1875,7 @@ def main() -> None:
             html_output = output.with_name(
                 f"{output.stem}_initial_{item['initial_condition_index']:02d}_3d.html"
             )
-            export_unified_team_html3d(item, html_output, terrain=terrain)
+            export_dp_html3d(item, html_output, terrain=terrain)
             print(f"wrote {html_output}")
     if args.visualize_cost_to_go:
         layer_output = output.with_name(f"{output.stem}_cost_to_go_layers_3d.html")

@@ -11,7 +11,7 @@ DEFAULT_CONFIG_PATH = Path(__file__).resolve().parents[1] / "config" / "default.
 
 
 def load_config(path: str | Path | None = None, overrides: dict[str, Any] | None = None) -> dict[str, Any]:
-    """Load the simulator configuration and recursively apply optional overrides."""
+    """Load the DP configuration and recursively apply optional overrides."""
     config_path = Path(path) if path is not None else DEFAULT_CONFIG_PATH
     with config_path.open("r", encoding="utf-8") as f:
         config = yaml.safe_load(f)
@@ -28,4 +28,3 @@ def _deep_update(base: dict[str, Any], updates: dict[str, Any]) -> dict[str, Any
         else:
             result[key] = value
     return result
-

@@ -41,7 +41,7 @@ Planning constraints:
 
 ```text
 path_planner/
-├── script/           # planner entry points and shared Python modules
+├── script/           # DP planner, PCD conversion, energy model, and visualization
 ├── config/           # vehicle, energy, and planner settings
 ├── maps/             # input maps, metadata, and previews
 │   ├── hybrid_challenge.html  # default map, also used by regression tests
@@ -51,21 +51,34 @@ path_planner/
 └── README.md
 ```
 
-`results/` is created when a planner runs and is ignored by Git. Archived outputs
-from the older 6 m minimum flight setting have been removed; generate new results
-with the current 1 m setting using the command above.
+`results/` is created when the planner runs and is ignored by Git.
 
-Run the entry points as modules from `path_planner/`:
+Run the DP entry point as a module from `path_planner/`:
 
 ```bash
 python3 -m script.dynamic_programming_air_ground --help
-python3 -m script.unified_team_hybrid_astar --help
-python3 -m script.pcd_25d --help
 ```
 
 The DP planner uses `maps/hybrid_challenge.html` when `--map-25d` is omitted.
-`pcd_25d` converts PCD point clouds into map files; pass the source PCD and
-`--output-dir maps/<map_name>`.
+Pass an existing `map_25d.npz` with `--map-25d` to plan on a recorded raster map.
+The `dp` section of `config/default.yaml` controls footprint sampling, attitude
+limits, and docking energy; shared vehicle, battery, and platform settings are
+in the same file.
+
+[`script/pcd_25d.py`](script/pcd_25d.py) prepares LiDAR point clouds, such as
+FAST-LIO2 PCD output, for the DP planner's 2.5D terrain grid. It estimates
+elevation and roughness, derives slope, obstacle, and landing-safety layers,
+and saves `map_25d.npz`, map metadata, and a preview image. This lets DP plan
+on recorded terrain instead of the built-in example map.
+
+Convert a point cloud from `path_planner/`:
+
+```bash
+python3 -m script.pcd_25d /path/to/cloud.pcd --output-dir maps/my_map
+```
+
+Use `--help` for crop, resolution, and terrain options, then pass
+`--map-25d maps/my_map/map_25d.npz` to the DP planner.
 
 Run tests from `path_planner/`:
 

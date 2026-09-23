@@ -6,13 +6,6 @@ from typing import Iterable
 import numpy as np
 
 
-@dataclass(frozen=True)
-class Scenario:
-    terrain: "TerrainMap"
-    start: tuple[float, float]
-    goal: tuple[float, float]
-
-
 @dataclass
 class TerrainMap:
     elevation: np.ndarray
@@ -153,64 +146,16 @@ def combined_ground_landing_cost(terrain: TerrainMap) -> np.ndarray:
     return ground + terrain.landing_cost
 
 
-def make_scenario(
-    name: str,
-    resolution: float = 1.0,
-    max_terrain_slope_deg: float = 30.0,
-) -> Scenario:
-    name = name.lower().replace("-", "_")
-    width, height = 40, 21
-    if name == "hybrid_challenge":
-        width, height = 56, 31
-    elevation = np.zeros((height, width), dtype=float)
-    roughness = np.zeros_like(elevation)
-    obstacle = np.zeros_like(elevation, dtype=bool)
-    unsafe_landing = np.zeros_like(elevation, dtype=bool)
-    start = (2.0, 10.0)
-    goal = (36.0, 10.0)
-
-    if name == "flat":
-        pass
-    elif name == "rough_patch":
-        roughness[:, 12:25] = 0.85
-    elif name == "detour_gap":
-        roughness[6:15, 12:25] = 0.90
-        roughness[0:5, 12:25] = 0.08
-        roughness[16:, 12:25] = 0.08
-    elif name == "obstacle_barrier":
-        obstacle[:, 18:21] = True
-        roughness[:, 16:23] = np.maximum(roughness[:, 16:23], 0.55)
-    elif name == "unsafe_landing_zone":
-        roughness[:, 10:30] = 0.65
-        unsafe_landing[:, 16:25] = True
-    elif name == "hill_landing":
-        xs = np.arange(width)[None, :]
-        ys = np.arange(height)[:, None]
-        elevation[:] = 2.5 * np.exp(-(((xs - 20.0) ** 2) / 55.0 + ((ys - 10.0) ** 2) / 30.0))
-        roughness[:, 15:24] = 0.35
-        unsafe_landing[:, 17:22] = True
-    elif name == "complex_mixed":
-        elevation, roughness, obstacle, unsafe_landing = _complex_mixed_layers(width, height)
-    elif name == "hybrid_challenge":
-        start = (8.0, 15.0)
-        goal = (45.0, 28.0)
-        elevation, roughness, obstacle, unsafe_landing = _hybrid_challenge_layers(width, height)
-    else:
-        raise ValueError(f"unknown scenario: {name}")
-
-    elevation = _limit_elevation_slope(
-        elevation,
-        resolution,
-        max_terrain_slope_deg,
-    )
-    terrain = TerrainMap(
-        elevation=elevation,
+def make_default_terrain() -> TerrainMap:
+    """Build the reference terrain used by the default DP example."""
+    elevation, roughness, obstacle, unsafe_landing = _hybrid_challenge_layers(56, 31)
+    return TerrainMap(
+        elevation=_limit_elevation_slope(elevation, 1.0, 30.0),
         roughness=roughness,
         obstacle=obstacle,
         unsafe_landing=unsafe_landing,
-        resolution=resolution,
+        resolution=1.0,
     )
-    return Scenario(terrain=terrain, start=start, goal=goal)
 
 
 def _limit_elevation_slope(
@@ -227,68 +172,6 @@ def _limit_elevation_slope(
     center = float(np.mean(elevation))
     scale = allowed_grade / maximum_grade
     return center + (elevation - center) * scale
-
-
-def _complex_mixed_layers(width: int, height: int) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    xs, ys = _grid(width, height)
-    elevation = (
-        0.28 * np.sin(xs / 3.8)
-        + 0.22 * np.cos(ys / 2.7)
-        + 0.20 * np.sin((xs + 1.5 * ys) / 5.2)
-        + _gaussian(xs, ys, cx=12.0, cy=7.0, sx=5.2, sy=3.8, amp=2.5)
-        + _gaussian(xs, ys, cx=21.0, cy=13.5, sx=6.6, sy=3.0, amp=2.2)
-        + _gaussian(xs, ys, cx=9.0, cy=16.0, sx=4.0, sy=2.8, amp=1.1)
-        - _gaussian(xs, ys, cx=25.5, cy=5.5, sx=4.5, sy=3.6, amp=1.2)
-        - _gaussian(xs, ys, cx=32.0, cy=13.5, sx=4.8, sy=4.0, amp=0.9)
-    )
-    diagonal_trough = np.exp(-((ys - (0.30 * xs + 1.6)) ** 2) / (2.0 * 1.8**2))
-    elevation -= 0.55 * diagonal_trough * np.exp(-((xs - 24.0) ** 2) / (2.0 * 9.0**2))
-    corridor_center_y = np.full_like(xs, 10.0)
-    corridor_blend = np.exp(-((ys - corridor_center_y) ** 2) / (2.0 * 4.2**2))
-    corridor_profile = 0.15 * np.sin(xs / 6.0) + 0.08 * np.cos(xs / 4.0)
-    elevation = elevation * (1.0 - 0.96 * corridor_blend) + corridor_profile * (0.96 * corridor_blend)
-    outer_relief = (
-        _gaussian(xs, ys, cx=9.0, cy=17.0, sx=4.5, sy=2.6, amp=1.0)
-        - _gaussian(xs, ys, cx=30.0, cy=3.0, sx=4.2, sy=2.8, amp=0.9)
-    )
-    elevation += outer_relief * (1.0 - corridor_blend)
-
-    roughness = np.zeros((height, width), dtype=float)
-    for cx, cy, sx, sy, amp in [
-        (10.5, 11.0, 3.5, 4.0, 0.70),
-        (17.0, 8.0, 4.7, 2.6, 0.60),
-        (23.5, 12.0, 4.8, 4.0, 0.72),
-        (31.5, 6.0, 3.2, 3.0, 0.52),
-        (29.5, 15.0, 3.8, 2.8, 0.46),
-    ]:
-        roughness += _gaussian(xs, ys, cx, cy, sx, sy, amp)
-    gy, gx = np.gradient(elevation)
-    slope_signal = np.hypot(gx, gy)
-    roughness += 0.12 * (np.sin(xs / 2.5) * np.cos(ys / 2.0) + 1.0)
-    roughness += 0.42 * slope_signal / max(float(np.max(slope_signal)), 1e-6)
-    roughness = roughness * (1.0 - 0.90 * corridor_blend) + 0.05 * corridor_blend
-    roughness += 0.30 * _gaussian(xs, ys, cx=31.0, cy=16.0, sx=4.0, sy=2.8, amp=1.0) * (1.0 - corridor_blend)
-    roughness = np.clip(roughness, 0.0, 0.95)
-
-    obstacle = np.zeros((height, width), dtype=bool)
-    _add_disk(obstacle, 13, 14, 2)
-    _add_disk(obstacle, 23, 5, 2)
-    _add_disk(obstacle, 29, 16, 2)
-    obstacle[4:7, 34:37] = True
-    obstacle[13:16, 6:9] = True
-    obstacle[2:4, 33:36] = True
-    # Keep a traversable corridor through the mission area while preserving nearby hazards.
-    corridor_clear = np.abs(ys - corridor_center_y) <= 3.0
-    obstacle[corridor_clear] = False
-
-    unsafe_landing = np.zeros((height, width), dtype=bool)
-    _add_disk(unsafe_landing, 17, 10, 3)
-    _add_disk(unsafe_landing, 26, 10, 3)
-    unsafe_landing[3:8, 24:31] = True
-    unsafe_landing[4:8, 17:21] = True
-    unsafe_landing[1:4, 28:35] = True
-    unsafe_landing[9:12, 32:35] = False
-    return elevation, roughness, obstacle, unsafe_landing
 
 
 def _hybrid_challenge_layers(width: int, height: int) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:

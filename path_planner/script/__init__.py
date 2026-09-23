@@ -1,1 +1,1 @@
-"""Lightweight 2.5D aerial-ground robot planning simulator."""
+"""Air/ground dynamic programming planner and its supporting models."""
