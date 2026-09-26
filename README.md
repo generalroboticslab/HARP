@@ -4,7 +4,7 @@
 
 **Fly, Drive, Reconfigure: A Modular Reconfigurable Aerial-Ground Platform for Field Operations**
 
-Li-Yu Lo\*, Yanbaihui Liu\*, Chengchuan Shu, Tyler Harris, Jonathan Ryan, Boyuan Chen
+[Li-Yu Lo](https://pattylo.github.io/)\*, [Yanbaihui Liu](https://yanbhliu.github.io/)\*, [Chengchuan Shu](https://www.linkedin.com/in/chengchuan-shu-2351a5384/), [Tyler Harris](https://www.linkedin.com/in/tyler-harris-431aba27a/), [Jonathan Ryan](https://nicholas.duke.edu/people/faculty/ryan), [Boyuan Chen](http://boyuanchen.com/)
 
 \* Equal contribution
 
@@ -12,6 +12,7 @@ General Robotics Lab, Duke University
 
 **[Paper (arXiv)](https://arxiv.org/abs/2609.28887)** &middot;
 **[PDF](https://arxiv.org/pdf/2609.28887)** &middot;
+**[Website](https://generalroboticslab.com/HARP)** &middot;
 **[Hardware](CAD/README.md)** &middot;
 **[Mapping](mapping/ros2_ws/src/mod_explore/MAP_EDITOR.md)** &middot;
 **[Planning](path_planner/README.md)**
