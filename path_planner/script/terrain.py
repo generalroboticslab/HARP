@@ -149,13 +149,16 @@ def combined_ground_landing_cost(terrain: TerrainMap) -> np.ndarray:
 def make_default_terrain() -> TerrainMap:
     """Build the reference terrain used by the default DP example."""
     elevation, roughness, obstacle, unsafe_landing = _hybrid_challenge_layers(56, 31)
-    return TerrainMap(
+    terrain = TerrainMap(
         elevation=_limit_elevation_slope(elevation, 1.0, 30.0),
         roughness=roughness,
         obstacle=obstacle,
         unsafe_landing=unsafe_landing,
         resolution=1.0,
     )
+    # The generated reference map has no measured obstacle-height layer.
+    terrain.surface_height_m = np.zeros_like(terrain.elevation, dtype=float)
+    return terrain
 
 
 def _limit_elevation_slope(

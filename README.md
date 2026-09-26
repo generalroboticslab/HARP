@@ -10,9 +10,10 @@
 
 General Robotics Lab, Duke University
 
+**[Website](https://generalroboticslab.com/HARP)** &middot;
+**[Video](https://youtu.be/oZd8VycCyGY?si=_JVYgbQ3M2Kdmaso)** &middot;
 **[Paper (arXiv)](https://arxiv.org/abs/2609.28887)** &middot;
 **[PDF](https://arxiv.org/pdf/2609.28887)** &middot;
-**[Website](https://generalroboticslab.com/HARP)** &middot;
 **[Hardware](CAD/README.md)** &middot;
 **[Mapping](mapping/ros2_ws/src/mod_explore/MAP_EDITOR.md)** &middot;
 **[Planning](path_planner/README.md)**
