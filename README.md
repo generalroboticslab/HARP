@@ -109,3 +109,6 @@ If you use HARP in your research, please cite the paper:
   url           = {https://arxiv.org/abs/2609.28887}
 }
 ```
+
+## Acknowledgement
+This work is supported by a Dean’s Research Venture Fund from Duke Nicholas School of the Environment, DARPA TIAMAT program under award HR00112490419, and ARO under award W911NF2410405.
